@@ -38,6 +38,9 @@ urlpatterns = [
     path('api/tasks/', include('tasks.urls')),
     path('api/integrations/', include('integrations.urls')),
     path('api/inventory/', include('inventory.urls')),
+    path('api/bookings/', include('bookings.urls')),
+    path('api/brokers/', include('brokers.urls')),
+    path('api/analytics/', include('analytics.urls')),
 ]
 
 # Serve static files in development

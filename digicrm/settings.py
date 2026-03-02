@@ -41,6 +41,9 @@ INSTALLED_APPS = [
     'tasks',
     'integrations',
     'inventory',
+    'bookings',
+    'brokers',
+    'analytics',
 ]
 
 MIDDLEWARE = [
