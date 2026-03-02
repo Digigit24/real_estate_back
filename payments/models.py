@@ -33,6 +33,7 @@ class Payment(models.Model):
     reference_no = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
     date = models.DateTimeField()
+    due_date = models.DateTimeField(null=True, blank=True)
     status = models.CharField(
         max_length=20,
         choices=PaymentStatusEnum.choices,
