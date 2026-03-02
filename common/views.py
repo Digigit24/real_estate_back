@@ -118,6 +118,7 @@ class TokenLoginView(View):
                 return JsonResponse({
                     'success': True,
                     'message': f'Successfully authenticated for tenant {payload.get("tenant_slug")}',
+                    'redirect_url': '/admin/',
                     'access_token': access_token,
                     'token_type': 'Bearer',
                     'user': {
@@ -255,6 +256,7 @@ def superadmin_proxy_login_view(request):
                     return JsonResponse({
                         'success': True,
                         'message': f'Successfully authenticated for tenant {user_data.get("tenant_name")}',
+                        'redirect_url': '/admin/',
                         'access_token': access_token,
                         'token_type': 'Bearer',
                         'user': {
