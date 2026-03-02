@@ -148,28 +148,117 @@ class TokenLoginView(View):
             }, status=500)
 
 
+def _build_local_admin_jwt(admin):
+    """Generate a JWT token for a local super admin."""
+    import time
+    import jwt as pyjwt
+    secret_key = getattr(settings, 'JWT_SECRET_KEY')
+    algorithm = getattr(settings, 'JWT_ALGORITHM', 'HS256')
+    now = int(time.time())
+    payload = {
+        'user_id': admin.pk,
+        'email': admin.email,
+        'first_name': admin.first_name,
+        'last_name': admin.last_name,
+        'tenant_id': admin.tenant_id,
+        'tenant_slug': admin.tenant_slug,
+        'is_super_admin': True,
+        'enabled_modules': ['crm', 'meetings', 'payments', 'tasks', 'integrations',
+                            'inventory', 'bookings', 'brokers', 'analytics'],
+        'permissions': {},
+        'iat': now,
+        'exp': now + 3600 * 8,  # 8 hours
+    }
+    return pyjwt.encode(payload, secret_key, algorithm=algorithm)
+
+
+def _try_local_admin_login(request, email, password):
+    """
+    Attempt login against LocalSuperAdmin table.
+    Returns a JsonResponse on success, or None if no match.
+    """
+    try:
+        from common.models import LocalSuperAdmin
+        admin = LocalSuperAdmin.objects.get(email=email, is_active=True)
+    except Exception:
+        return None
+
+    if not admin.check_password(password):
+        return None
+
+    access_token = _build_local_admin_jwt(admin)
+    user_payload = {
+        'user_id': admin.pk,
+        'email': admin.email,
+        'first_name': admin.first_name,
+        'last_name': admin.last_name,
+        'tenant_id': admin.tenant_id,
+        'tenant_slug': admin.tenant_slug,
+        'is_super_admin': True,
+        'permissions': {},
+        'enabled_modules': ['crm', 'meetings', 'payments', 'tasks', 'integrations',
+                            'inventory', 'bookings', 'brokers', 'analytics'],
+    }
+
+    from .auth_backends import TenantUser
+    from django.contrib.auth import login as auth_login
+
+    user = TenantUser(user_payload)
+    request.session['jwt_token'] = access_token
+    request.session['tenant_id'] = admin.tenant_id
+    request.session['tenant_slug'] = admin.tenant_slug
+    request.session['user_data'] = user_payload
+    user.backend = 'common.auth_backends.SuperAdminAuthBackend'
+    auth_login(request, user)
+    request.session.save()
+
+    logger.info(f"Local admin login successful: {email}")
+    return JsonResponse({
+        'success': True,
+        'message': f'Successfully authenticated (local) for tenant {admin.tenant_slug}',
+        'redirect_url': '/admin/',
+        'access_token': access_token,
+        'token_type': 'Bearer',
+        'user': {
+            'id': admin.pk,
+            'email': admin.email,
+            'tenant_id': admin.tenant_id,
+            'tenant_slug': admin.tenant_slug,
+            'is_superuser': True,
+            'permissions': {},
+            'enabled_modules': user_payload['enabled_modules'],
+        }
+    })
+
+
 @csrf_exempt
 def superadmin_proxy_login_view(request):
     """
-    Function-based view for SuperAdmin login proxy to avoid CORS issues
+    Function-based view for SuperAdmin login proxy to avoid CORS issues.
+    First tries local admin credentials, then falls back to the external SuperAdmin API.
     """
     if request.method != 'POST':
         return JsonResponse({'error': 'Method not allowed'}, status=405)
-    
+
     try:
         import json
         data = json.loads(request.body)
         email = data.get('email')
         password = data.get('password')
-        
+
         logger.info(f"Login attempt for email: {email}")
-        
+
         if not email or not password:
             return JsonResponse({
                 'error': 'Email and password are required'
             }, status=400)
-        
-        # Call SuperAdmin login API
+
+        # 1. Try local super admin first
+        local_response = _try_local_admin_login(request, email, password)
+        if local_response is not None:
+            return local_response
+
+        # 2. Fall back to external SuperAdmin API
         superadmin_url = getattr(settings, 'SUPERADMIN_URL', 'https://admin.celiyo.com')
         login_url = f"{superadmin_url}/api/auth/login/"
         
