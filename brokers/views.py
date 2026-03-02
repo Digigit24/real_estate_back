@@ -15,6 +15,8 @@ from .serializers import (
     BrokerSerializer, BrokerListSerializer,
     CommissionSerializer, CommissionCreateSerializer, CommissionMarkPaidSerializer,
     BrokerRegisterSerializer, BrokerRegisterResponseSerializer,
+    BrokerLoginSerializer, BrokerLoginResponseSerializer,
+    BrokerSubmitLeadSerializer, BrokerSubmitLeadResponseSerializer,
 )
 import logging
 
@@ -238,7 +240,16 @@ class BrokerLoginView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    @extend_schema(description='Broker portal login — returns BrokerToken for subsequent requests')
+    @extend_schema(
+        description='Broker portal login — returns BrokerToken for subsequent requests',
+        request=BrokerLoginSerializer,
+        responses={
+            200: BrokerLoginResponseSerializer,
+            400: {'description': 'Missing tenant_id, phone, or password'},
+            401: {'description': 'Invalid credentials'},
+            403: {'description': 'Account is PENDING or inactive'},
+        },
+    )
     def post(self, request):
         tenant_id = request.data.get('tenant_id')
         phone = request.data.get('phone')
@@ -278,7 +289,11 @@ class BrokerLogoutView(APIView):
     authentication_classes = [BrokerTokenAuthentication]
     permission_classes = [AllowAny]
 
-    @extend_schema(description='Broker portal logout — invalidates the current session token')
+    @extend_schema(
+        description='Broker portal logout — invalidates the current session token',
+        request=None,
+        responses={200: {'description': 'Logged out successfully'}},
+    )
     def post(self, request):
         auth = request.auth
         if auth and isinstance(auth, BrokerSession):
@@ -333,7 +348,14 @@ class BrokerSubmitLeadView(APIView):
     authentication_classes = [BrokerTokenAuthentication]
     permission_classes = [AllowAny]
 
-    @extend_schema(description='Broker submits a new buyer lead into the builder CRM (tagged to this broker)')
+    @extend_schema(
+        description='Broker submits a new buyer lead into the builder CRM (tagged to this broker)',
+        request=BrokerSubmitLeadSerializer,
+        responses={
+            201: BrokerSubmitLeadResponseSerializer,
+            400: {'description': 'Missing name or phone'},
+        },
+    )
     def post(self, request):
         broker = request.broker
         data = request.data

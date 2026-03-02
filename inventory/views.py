@@ -214,7 +214,11 @@ class UnitViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
 
         return Response(UnitSerializer(unit, context={'request': request}).data)
 
-    @extend_schema(description='Release a unit reservation, setting it back to AVAILABLE.')
+    @extend_schema(
+        description='Release a unit reservation, setting it back to AVAILABLE. No request body needed.',
+        request=None,
+        responses={200: UnitSerializer, 400: {'description': 'Unit is not currently RESERVED'}},
+    )
     @action(detail=True, methods=['post'], url_path='release')
     def release(self, request, pk=None):
         unit = self.get_object()

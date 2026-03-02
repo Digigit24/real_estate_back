@@ -8,7 +8,10 @@ from rest_framework.views import APIView
 from common.mixins import TenantViewSetMixin
 from common.permissions import JWTAuthentication, HasCRMPermission
 from .models import TenantSettings, PaymentPlanTemplate
-from .serializers import TenantSettingsSerializer, PaymentPlanTemplateSerializer
+from .serializers import (
+    TenantSettingsSerializer, PaymentPlanTemplateSerializer,
+    PaymentPlanPreviewSerializer, PaymentPlanPreviewResponseSerializer,
+)
 
 
 class TenantSettingsView(APIView):
@@ -30,7 +33,11 @@ class TenantSettingsView(APIView):
         obj = self._get_or_create(request.tenant_id)
         return Response(TenantSettingsSerializer(obj).data)
 
-    @extend_schema(description='Update all branding/settings fields')
+    @extend_schema(
+        description='Update all branding/settings fields (full replace)',
+        request=TenantSettingsSerializer,
+        responses={200: TenantSettingsSerializer},
+    )
     def put(self, request):
         obj = self._get_or_create(request.tenant_id)
         serializer = TenantSettingsSerializer(obj, data=request.data)
@@ -38,7 +45,11 @@ class TenantSettingsView(APIView):
         serializer.save()
         return Response(serializer.data)
 
-    @extend_schema(description='Partially update branding/settings fields')
+    @extend_schema(
+        description='Partially update branding/settings fields (send only fields you want to change)',
+        request=TenantSettingsSerializer,
+        responses={200: TenantSettingsSerializer},
+    )
     def patch(self, request):
         obj = self._get_or_create(request.tenant_id)
         serializer = TenantSettingsSerializer(obj, data=request.data, partial=True)
@@ -70,7 +81,11 @@ class PaymentPlanTemplateViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         tenant_id = getattr(self.request, 'tenant_id', None)
         serializer.save(tenant_id=tenant_id, owner_user_id=self.request.user_id)
 
-    @extend_schema(description='Mark this template as the default for new bookings (unsets previous default)')
+    @extend_schema(
+        description='Mark this template as the default for new bookings (unsets previous default). No request body needed.',
+        request=None,
+        responses={200: PaymentPlanTemplateSerializer},
+    )
     @action(detail=True, methods=['post'], url_path='set-default')
     def set_default(self, request, pk=None):
         template = self.get_object()
@@ -81,10 +96,15 @@ class PaymentPlanTemplateViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         template.save(update_fields=['is_default', 'updated_at'])
         return Response(PaymentPlanTemplateSerializer(template).data)
 
-    @extend_schema(description=(
-        'Preview milestone dates and amounts for a given booking date and total amount. '
-        'Body: {"template_id": 1, "booking_date": "2026-03-02", "total_amount": 9000000}'
-    ))
+    @extend_schema(
+        description='Preview computed milestone dates and amounts for a given booking date and total booking amount.',
+        request=PaymentPlanPreviewSerializer,
+        responses={
+            200: PaymentPlanPreviewResponseSerializer,
+            400: {'description': 'Missing template_id, booking_date, or total_amount'},
+            404: {'description': 'Template not found for this tenant'},
+        },
+    )
     @action(detail=False, methods=['post'], url_path='preview')
     def preview(self, request):
         from datetime import date, timedelta

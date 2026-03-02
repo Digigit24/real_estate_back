@@ -18,6 +18,7 @@ from rest_framework import serializers, viewsets, status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from drf_spectacular.utils import extend_schema
 from django.core.cache import cache
 
 from integrations.models import (
@@ -106,6 +107,14 @@ class ConnectionViewSet(viewsets.ModelViewSet):
             return ConnectionDetailSerializer
         return ConnectionListSerializer
 
+    @extend_schema(
+        description='Initiate OAuth flow — returns authorization_url to redirect the user to for Google consent',
+        request=OAuthInitiateSerializer,
+        responses={200: {'type': 'object', 'properties': {
+            'authorization_url': {'type': 'string', 'description': 'Google OAuth consent URL to redirect the user to'},
+            'state': {'type': 'string', 'description': 'CSRF state token (cached server-side for 10 min)'},
+        }}},
+    )
     @action(detail=False, methods=['post'])
     def initiate_oauth(self, request):
         """
@@ -188,6 +197,15 @@ class ConnectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST
             )
 
+    @extend_schema(
+        description=(
+            'Handle OAuth callback after Google redirects back. '
+            'GET: called automatically by Google — redirects to frontend. '
+            'POST: called by frontend after receiving code+state from redirect.'
+        ),
+        request=OAuthCallbackSerializer,
+        responses={201: ConnectionDetailSerializer},
+    )
     @action(detail=False, methods=['post', 'get'], permission_classes=[])
     def oauth_callback(self, request):
         """
@@ -379,6 +397,11 @@ class ConnectionViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description='Disconnect a connection — clears tokens and sets status to DISCONNECTED. No request body needed.',
+        request=None,
+        responses={200: ConnectionDetailSerializer},
+    )
     @action(detail=True, methods=['post'])
     def disconnect(self, request, pk=None):
         """
@@ -399,6 +422,11 @@ class ConnectionViewSet(viewsets.ModelViewSet):
             'connection': ConnectionDetailSerializer(connection).data
         })
 
+    @extend_schema(
+        description='Manually refresh OAuth access token for a connection. No request body needed.',
+        request=None,
+        responses={200: ConnectionDetailSerializer, 400: {'description': 'No refresh token available or refresh failed'}},
+    )
     @action(detail=True, methods=['post'])
     def refresh_token(self, request, pk=None):
         """
@@ -659,6 +687,23 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         """Soft delete workflow"""
         instance.soft_delete()
 
+    @extend_schema(
+        description='Manually trigger a workflow test run. Optionally provide trigger_data; otherwise reads live from the sheet.',
+        request=TestWorkflowSerializer,
+        responses={
+            200: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'executions': {'type': 'array', 'items': {'$ref': '#/components/schemas/ExecutionLogList'}},
+            }},
+            202: {'type': 'object', 'properties': {
+                'message': {'type': 'string'},
+                'async': {'type': 'boolean'},
+                'task_id': {'type': 'string'},
+                'rows_found': {'type': 'integer'},
+                'hint': {'type': 'string'},
+            }},
+        },
+    )
     @action(detail=True, methods=['post'])
     def test(self, request, pk=None):
         """
@@ -764,6 +809,14 @@ class WorkflowViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description='Toggle workflow active/inactive. No request body needed.',
+        request=None,
+        responses={200: {'type': 'object', 'properties': {
+            'message': {'type': 'string'},
+            'is_active': {'type': 'boolean'},
+        }}},
+    )
     @action(detail=True, methods=['post'])
     def toggle(self, request, pk=None):
         """
@@ -796,6 +849,11 @@ class WorkflowViewSet(viewsets.ModelViewSet):
         serializer = ExecutionLogListSerializer(logs, many=True)
         return Response(serializer.data)
 
+    @extend_schema(
+        description='GET: list all field mappings for this workflow. POST: create a new field mapping.',
+        request=WorkflowMappingCreateSerializer,
+        responses={200: WorkflowMappingSerializer(many=True), 201: WorkflowMappingSerializer},
+    )
     @action(detail=True, methods=['get', 'post'])
     def mappings(self, request, pk=None):
         """

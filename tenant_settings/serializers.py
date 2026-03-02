@@ -40,3 +40,27 @@ class PaymentPlanTemplateSerializer(serializers.ModelSerializer):
                     'Each stage must have: name, percentage, days_from_booking'
                 )
         return stages
+
+
+class PaymentPlanPreviewSerializer(serializers.Serializer):
+    """Request body for previewing payment plan milestones."""
+    template_id = serializers.IntegerField(help_text='ID of the PaymentPlanTemplate to preview')
+    booking_date = serializers.DateField(help_text='Booking date used to calculate milestone due dates (YYYY-MM-DD)')
+    total_amount = serializers.DecimalField(max_digits=14, decimal_places=2, help_text='Total booking amount in INR')
+
+
+class PaymentPlanMilestoneSerializer(serializers.Serializer):
+    """A single computed milestone in the preview response."""
+    order_index = serializers.IntegerField()
+    milestone_name = serializers.CharField()
+    percentage = serializers.DecimalField(max_digits=5, decimal_places=2)
+    amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    due_date = serializers.DateField()
+
+
+class PaymentPlanPreviewResponseSerializer(serializers.Serializer):
+    """Response body from the payment plan preview action."""
+    template_id = serializers.IntegerField()
+    template_name = serializers.CharField()
+    total_amount = serializers.DecimalField(max_digits=14, decimal_places=2)
+    milestones = PaymentPlanMilestoneSerializer(many=True)

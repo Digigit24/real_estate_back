@@ -89,11 +89,22 @@ class LeadStatusViewSet(CRMPermissionMixin, TenantViewSetMixin, viewsets.ModelVi
         {"name": "Not Interested",        "order_index": 12, "color_hex": "#6B7280", "is_won": False, "is_lost": True},
     ]
 
-    @extend_schema(description=(
-        'Auto-seed the 12 default RE pipeline stages for this tenant. '
-        'Safe to call on first login — does nothing if stages already exist. '
-        'Returns created=true only when stages are freshly created.'
-    ))
+    @extend_schema(
+        description=(
+            'Auto-seed the 12 default RE pipeline stages for this tenant. '
+            'Safe to call on first login — does nothing if stages already exist. '
+            'Returns created=true only when stages are freshly created.'
+        ),
+        request=None,
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'created': {'type': 'boolean', 'description': 'True if stages were just created, false if they already existed'},
+                'message': {'type': 'string'},
+                'stages': {'type': 'array', 'items': {'$ref': '#/components/schemas/LeadStatus'}},
+            }
+        }},
+    )
     @action(detail=False, methods=['post'], url_path='initialize-defaults')
     def initialize_defaults(self, request):
         tenant_id = getattr(request, 'tenant_id', None)
