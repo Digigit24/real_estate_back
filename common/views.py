@@ -118,13 +118,16 @@ class TokenLoginView(View):
                 return JsonResponse({
                     'success': True,
                     'message': f'Successfully authenticated for tenant {payload.get("tenant_slug")}',
-                    'redirect_url': '/admin/',
+                    'access_token': access_token,
+                    'token_type': 'Bearer',
                     'user': {
                         'id': user.id,
                         'email': user.email,
                         'tenant_id': user.tenant_id,
                         'tenant_slug': user.tenant_slug,
-                        'is_superuser': user.is_superuser
+                        'is_superuser': user.is_superuser,
+                        'permissions': payload.get('permissions', {}),
+                        'enabled_modules': payload.get('enabled_modules', []),
                     }
                 })
                 
@@ -252,13 +255,16 @@ def superadmin_proxy_login_view(request):
                     return JsonResponse({
                         'success': True,
                         'message': f'Successfully authenticated for tenant {user_data.get("tenant_name")}',
-                        'redirect_url': '/admin/',
+                        'access_token': access_token,
+                        'token_type': 'Bearer',
                         'user': {
                             'id': user.id,
                             'email': user.email,
                             'tenant_id': user.tenant_id,
                             'tenant_slug': user.tenant_slug,
-                            'is_superuser': user.is_superuser
+                            'is_superuser': user.is_superuser,
+                            'permissions': payload.get('permissions', {}),
+                            'enabled_modules': payload.get('enabled_modules', []),
                         }
                     })
                     

@@ -49,6 +49,8 @@ class JWTAuthenticationMiddleware(MiddlewareMixin):
         '/api/schema.json',
         '/api/schema.yaml',
         '/api/logs/',  # Logs endpoint - public for monitoring
+        '/api/brokers/portal/register/',  # Broker self-registration (no JWT needed)
+        '/api/brokers/portal/login/',     # Broker portal login (no JWT needed)
     ]
 
     def process_request(self, request):
