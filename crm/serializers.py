@@ -51,7 +51,12 @@ class LeadSerializer(TenantMixin):
             'status', 'status_name', 'priority', 'lead_score', 'value_amount', 'value_currency',
             'source', 'owner_user_id', 'assigned_to', 'metadata', 'last_contacted_at',
             'next_follow_up_at', 'notes', 'address_line1', 'address_line2', 'city',
-            'state', 'country', 'postal_code', 'created_at', 'updated_at', 'activities'
+            'state', 'country', 'postal_code',
+            # Real estate fields
+            're_source', 'budget_min', 'budget_max', 'bhk_preference',
+            'preferred_localities', 'preferred_project_id', 'shortlisted_unit_id',
+            'broker_id', 'site_visit_date', 'token_amount',
+            'created_at', 'updated_at', 'activities',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 
@@ -74,7 +79,9 @@ class LeadListSerializer(TenantMixin):
             'id', 'name', 'phone', 'email', 'company', 'status',
             'status_name', 'priority', 'lead_score', 'value_amount', 'value_currency',
             'owner_user_id', 'assigned_to', 'metadata', 'next_follow_up_at',
-            'created_at', 'updated_at'
+            're_source', 'budget_min', 'budget_max', 'bhk_preference',
+            'preferred_project_id', 'shortlisted_unit_id',
+            'created_at', 'updated_at',
         ]
         read_only_fields = ['id', 'created_at', 'updated_at']
 

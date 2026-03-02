@@ -13,8 +13,22 @@ class ActivityTypeEnum(models.TextChoices):
     EMAIL = 'EMAIL', 'Email'
     MEETING = 'MEETING', 'Meeting'
     NOTE = 'NOTE', 'Note'
-    
     SMS = 'SMS', 'SMS'
+    SITE_VISIT = 'SITE_VISIT', 'Site Visit'
+    WHATSAPP = 'WHATSAPP', 'WhatsApp'
+    OTHER = 'OTHER', 'Other'
+
+
+class LeadSourceEnum(models.TextChoices):
+    BROKER = 'BROKER', 'Broker / Channel Partner'
+    WEBSITE = 'WEBSITE', 'Website'
+    META_ADS = 'META_ADS', 'Meta Ads'
+    GOOGLE_ADS = 'GOOGLE_ADS', 'Google Ads'
+    WALK_IN = 'WALK_IN', 'Walk In'
+    REFERRAL = 'REFERRAL', 'Referral'
+    WHATSAPP = 'WHATSAPP', 'WhatsApp'
+    PHONE = 'PHONE', 'Phone Enquiry'
+    HOARDING = 'HOARDING', 'Hoarding / Outdoor'
     OTHER = 'OTHER', 'Other'
 
 
@@ -100,6 +114,26 @@ class Lead(models.Model):
     value_amount = models.DecimalField(max_digits=12, decimal_places=2, null=True, blank=True)
     value_currency = models.TextField(null=True, blank=True)
     source = models.TextField(null=True, blank=True)
+
+    # --- Real Estate specific fields ---
+    re_source = models.CharField(
+        max_length=20,
+        choices=LeadSourceEnum.choices,
+        null=True,
+        blank=True,
+        db_index=True
+    )
+    budget_min = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    budget_max = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    bhk_preference = models.CharField(max_length=20, null=True, blank=True)
+    preferred_localities = models.JSONField(null=True, blank=True, help_text='List of preferred areas/localities')
+    preferred_project_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    shortlisted_unit_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    broker_id = models.BigIntegerField(null=True, blank=True, db_index=True)
+    site_visit_date = models.DateTimeField(null=True, blank=True)
+    token_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
+    # ------------------------------------
+
     owner_user_id = models.UUIDField(db_index=True)
     assigned_to = models.UUIDField(db_index=True, null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True, help_text='Custom fields for storing dynamic key-value pairs')
