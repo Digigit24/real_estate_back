@@ -41,6 +41,7 @@ urlpatterns = [
     path('api/bookings/', include('bookings.urls')),
     path('api/brokers/', include('brokers.urls')),
     path('api/analytics/', include('analytics.urls')),
+    path('api/tenant/', include('tenant_settings.urls')),
 ]
 
 # Serve static files in development

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'bookings',
     'brokers',
     'analytics',
+    'tenant_settings',
 ]
 
 MIDDLEWARE = [

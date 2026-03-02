@@ -74,6 +74,46 @@ class LeadStatusViewSet(CRMPermissionMixin, TenantViewSetMixin, viewsets.ModelVi
     ordering_fields = ['order_index', 'name', 'created_at']
     ordering = ['order_index']
 
+    RE_PIPELINE_DEFAULTS = [
+        {"name": "Inquiry",               "order_index": 1,  "color_hex": "#94A3B8", "is_won": False, "is_lost": False},
+        {"name": "Qualified",             "order_index": 2,  "color_hex": "#60A5FA", "is_won": False, "is_lost": False},
+        {"name": "Site Visit Scheduled",  "order_index": 3,  "color_hex": "#FBBF24", "is_won": False, "is_lost": False},
+        {"name": "Site Visit Done",       "order_index": 4,  "color_hex": "#F97316", "is_won": False, "is_lost": False},
+        {"name": "Shortlisted Unit",      "order_index": 5,  "color_hex": "#A78BFA", "is_won": False, "is_lost": False},
+        {"name": "Negotiation",           "order_index": 6,  "color_hex": "#EC4899", "is_won": False, "is_lost": False},
+        {"name": "Token Paid",            "order_index": 7,  "color_hex": "#10B981", "is_won": False, "is_lost": False},
+        {"name": "Agreement",             "order_index": 8,  "color_hex": "#059669", "is_won": False, "is_lost": False},
+        {"name": "Registered",            "order_index": 9,  "color_hex": "#047857", "is_won": False, "is_lost": False},
+        {"name": "Closed / Won",          "order_index": 10, "color_hex": "#16A34A", "is_won": True,  "is_lost": False},
+        {"name": "Lost",                  "order_index": 11, "color_hex": "#EF4444", "is_won": False, "is_lost": True},
+        {"name": "Not Interested",        "order_index": 12, "color_hex": "#6B7280", "is_won": False, "is_lost": True},
+    ]
+
+    @extend_schema(description=(
+        'Auto-seed the 12 default RE pipeline stages for this tenant. '
+        'Safe to call on first login — does nothing if stages already exist. '
+        'Returns created=true only when stages are freshly created.'
+    ))
+    @action(detail=False, methods=['post'], url_path='initialize-defaults')
+    def initialize_defaults(self, request):
+        tenant_id = getattr(request, 'tenant_id', None)
+        existing = LeadStatus.objects.filter(tenant_id=tenant_id).count()
+        if existing > 0:
+            statuses = LeadStatus.objects.filter(tenant_id=tenant_id).order_by('order_index')
+            return Response({
+                'created': False,
+                'message': f'Tenant already has {existing} pipeline stage(s).',
+                'stages': LeadStatusSerializer(statuses, many=True).data,
+            })
+        stages = [LeadStatus(tenant_id=tenant_id, **s) for s in self.RE_PIPELINE_DEFAULTS]
+        LeadStatus.objects.bulk_create(stages)
+        created = LeadStatus.objects.filter(tenant_id=tenant_id).order_by('order_index')
+        return Response({
+            'created': True,
+            'message': f'Created {len(stages)} default RE pipeline stages.',
+            'stages': LeadStatusSerializer(created, many=True).data,
+        }, status=status.HTTP_201_CREATED)
+
 
 @extend_schema_view(
     list=extend_schema(description='List all leads'),

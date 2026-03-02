@@ -1,4 +1,7 @@
+import hashlib
+import secrets
 from django.db import models
+from django.utils import timezone
 
 
 class BrokerStatusEnum(models.TextChoices):
@@ -39,6 +42,10 @@ class Broker(models.Model):
     address = models.TextField(null=True, blank=True)
     city = models.TextField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
+
+    # Portal auth fields
+    portal_email = models.TextField(null=True, blank=True, db_index=True, help_text='Login email for broker portal')
+    password_hash = models.TextField(null=True, blank=True)
 
     owner_user_id = models.UUIDField(db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -110,3 +117,47 @@ class Commission(models.Model):
 
     def __str__(self):
         return f"Commission #{self.id} - Broker: {self.broker.name} - Booking #{self.booking_id}"
+
+
+class BrokerSession(models.Model):
+    """Simple token-based session for the broker portal."""
+    id = models.BigAutoField(primary_key=True)
+    broker = models.ForeignKey(
+        Broker,
+        on_delete=models.CASCADE,
+        related_name='sessions',
+        db_column='broker_id'
+    )
+    token = models.CharField(max_length=64, unique=True, db_index=True)
+    expires_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        db_table = 'broker_sessions'
+        indexes = [
+            models.Index(fields=['token'], name='idx_broker_sessions_token'),
+            models.Index(fields=['broker'], name='idx_broker_sessions_broker_id'),
+        ]
+
+    def is_valid(self):
+        return timezone.now() < self.expires_at
+
+    def __str__(self):
+        return f"Session for broker {self.broker_id}"
+
+    @classmethod
+    def create_for_broker(cls, broker, days=30):
+        token = secrets.token_hex(32)
+        expires_at = timezone.now() + timezone.timedelta(days=days)
+        return cls.objects.create(broker=broker, token=token, expires_at=expires_at)
+
+
+# Utility helpers on Broker model (monkey-patched to keep models.py clean)
+def _set_password(self, raw_password):
+    self.password_hash = hashlib.sha256(raw_password.encode()).hexdigest()
+
+def _check_password(self, raw_password):
+    return self.password_hash == hashlib.sha256(raw_password.encode()).hexdigest()
+
+Broker.set_password = _set_password
+Broker.check_password = _check_password

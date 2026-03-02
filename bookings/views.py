@@ -22,6 +22,35 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _auto_create_commission(booking, tenant_id):
+    """
+    If the booked lead was referred by a broker, auto-create a Commission record
+    using the broker's default commission_rate.
+    """
+    try:
+        from crm.models import Lead
+        lead = Lead.objects.get(id=booking.lead_id)
+        if not lead.broker_id:
+            return
+        from brokers.models import Broker, Commission
+        broker = Broker.objects.get(id=lead.broker_id, tenant_id=tenant_id)
+        commission_amount = (booking.total_amount * broker.commission_rate / 100).quantize(Decimal('0.01'))
+        Commission.objects.get_or_create(
+            booking=booking,
+            broker=broker,
+            defaults=dict(
+                tenant_id=tenant_id,
+                lead_id=lead.id,
+                commission_rate=broker.commission_rate,
+                commission_amount=commission_amount,
+                owner_user_id=booking.owner_user_id,
+            )
+        )
+        logger.info(f"Auto-created commission for broker {broker.id} on booking #{booking.id}")
+    except Exception as e:
+        logger.warning(f"Auto-commission skipped for booking #{booking.id}: {e}")
+
+
 def _generate_20_80_milestones(booking, total_amount):
     """
     20:80 Plan:
@@ -178,6 +207,9 @@ class BookingViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         if milestones:
             PaymentMilestone.objects.bulk_create(milestones)
 
+        # Auto-create commission if lead came via a broker
+        _auto_create_commission(booking, tenant_id)
+
         logger.info(
             f"Booking #{booking.id} created for lead {booking.lead_id}, "
             f"unit {booking.unit_id}, plan={plan_type}"
@@ -289,3 +321,107 @@ class BookingViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
                 'days_until_due': (m.due_date - today).days,
             })
         return Response({'count': len(data), 'results': data})
+
+    @extend_schema(description=(
+        'Returns structured data for generating a Demand Letter PDF (use jspdf on frontend). '
+        'Contains builder info, buyer details, unit specs, booking amount, and payment schedule.'
+    ))
+    @action(detail=True, methods=['get'], url_path='demand-letter-data')
+    def demand_letter_data(self, request, pk=None):
+        booking = self.get_object()
+        project = booking.unit.tower.project
+        milestones = list(booking.milestones.order_by('order_index', 'due_date').values(
+            'id', 'milestone_name', 'due_date', 'amount', 'percentage', 'status'
+        ))
+        return Response({
+            'document_type': 'DEMAND_LETTER',
+            'generated_at': __import__('django.utils.timezone', fromlist=['timezone']).timezone.now().isoformat(),
+            'booking': {
+                'id': booking.id,
+                'booking_date': booking.booking_date,
+                'status': booking.status,
+                'total_amount': booking.total_amount,
+                'token_amount': booking.token_amount,
+                'payment_plan_type': booking.payment_plan_type,
+                'agreement_date': booking.agreement_date,
+                'registration_date': booking.registration_date,
+                'remarks': booking.remarks,
+            },
+            'buyer': {
+                'name': booking.lead.name,
+                'phone': booking.lead.phone,
+                'email': booking.lead.email,
+                'address': booking.lead.address_line1,
+                'city': booking.lead.city,
+                'state': booking.lead.state,
+            },
+            'unit': {
+                'unit_number': booking.unit.unit_number,
+                'floor_number': booking.unit.floor_number,
+                'bhk_type': booking.unit.bhk_type,
+                'carpet_area': booking.unit.carpet_area,
+                'facing': booking.unit.facing,
+                'base_price': booking.unit.base_price,
+                'total_price': booking.unit.total_price,
+            },
+            'tower': {
+                'name': booking.unit.tower.name,
+            },
+            'project': {
+                'name': project.name,
+                'rera_number': project.rera_number,
+                'location': project.location,
+                'address': project.address,
+                'city': project.city,
+                'state': project.state,
+                'possession_date': project.possession_date,
+            },
+            'payment_schedule': milestones,
+        })
+
+    @extend_schema(description=(
+        'Returns structured data for generating a Payment Receipt PDF (use jspdf on frontend). '
+        'Call after marking a milestone as paid.'
+    ))
+    @action(detail=True, methods=['get'], url_path=r'milestones/(?P<milestone_id>\d+)/receipt-data')
+    def receipt_data(self, request, pk=None, milestone_id=None):
+        booking = self.get_object()
+        try:
+            milestone = booking.milestones.get(id=milestone_id)
+        except PaymentMilestone.DoesNotExist:
+            return Response({'error': 'Milestone not found'}, status=status.HTTP_404_NOT_FOUND)
+
+        from django.utils import timezone
+        return Response({
+            'document_type': 'PAYMENT_RECEIPT',
+            'generated_at': timezone.now().isoformat(),
+            'receipt_number': f'RCP-{booking.id}-{milestone.id}',
+            'booking_id': booking.id,
+            'buyer': {
+                'name': booking.lead.name,
+                'phone': booking.lead.phone,
+                'email': booking.lead.email,
+            },
+            'unit': {
+                'unit_number': booking.unit.unit_number,
+                'floor_number': booking.unit.floor_number,
+                'bhk_type': booking.unit.bhk_type,
+                'tower': booking.unit.tower.name,
+                'project': booking.unit.tower.project.name,
+                'rera_number': booking.unit.tower.project.rera_number,
+            },
+            'payment': {
+                'milestone_id': milestone.id,
+                'milestone_name': milestone.milestone_name,
+                'scheduled_amount': milestone.amount,
+                'received_amount': milestone.received_amount,
+                'received_date': milestone.received_date,
+                'reference_no': milestone.reference_no,
+                'status': milestone.status,
+                'notes': milestone.notes,
+            },
+            'booking_summary': {
+                'total_amount': booking.total_amount,
+                'payment_plan_type': booking.payment_plan_type,
+            },
+        })
