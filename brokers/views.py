@@ -14,6 +14,7 @@ from .models import Broker, Commission, CommissionStatusEnum, BrokerStatusEnum, 
 from .serializers import (
     BrokerSerializer, BrokerListSerializer,
     CommissionSerializer, CommissionCreateSerializer, CommissionMarkPaidSerializer,
+    BrokerRegisterSerializer, BrokerRegisterResponseSerializer,
 )
 import logging
 
@@ -181,7 +182,14 @@ class BrokerRegisterView(APIView):
     authentication_classes = []
     permission_classes = [AllowAny]
 
-    @extend_schema(description='Broker self-registration (status=PENDING until approved by admin)')
+    @extend_schema(
+        description='Broker self-registration (status=PENDING until approved by admin)',
+        request=BrokerRegisterSerializer,
+        responses={
+            201: BrokerRegisterResponseSerializer,
+            400: {'description': 'Missing required fields or duplicate phone/email'},
+        },
+    )
     def post(self, request):
         data = request.data
         required = ['tenant_id', 'name', 'phone', 'password']

@@ -90,3 +90,22 @@ class CommissionCreateSerializer(TenantMixin):
 class CommissionMarkPaidSerializer(serializers.Serializer):
     paid_date = serializers.DateField()
     notes = serializers.CharField(required=False, allow_blank=True)
+
+
+class BrokerRegisterSerializer(serializers.Serializer):
+    """Request body for broker self-registration."""
+    tenant_id = serializers.UUIDField(help_text='UUID of the builder tenant this broker is registering under')
+    name = serializers.CharField(max_length=255, help_text='Full name of the broker')
+    phone = serializers.CharField(max_length=20, help_text='Phone number (used as login credential)')
+    password = serializers.CharField(write_only=True, help_text='Password for broker portal login')
+    email = serializers.EmailField(required=False, allow_blank=True, help_text='Optional email address')
+    company_name = serializers.CharField(required=False, allow_blank=True, max_length=255, help_text='Brokerage firm name')
+    rera_number = serializers.CharField(required=False, allow_blank=True, max_length=100, help_text='RERA registration number')
+    city = serializers.CharField(required=False, allow_blank=True, max_length=100, help_text='City of operation')
+
+
+class BrokerRegisterResponseSerializer(serializers.Serializer):
+    """Response body after successful broker self-registration."""
+    message = serializers.CharField(help_text='Human-readable confirmation message')
+    broker_id = serializers.UUIDField(help_text='ID of the newly created broker record')
+    status = serializers.CharField(help_text='Always PENDING until approved by builder admin')
