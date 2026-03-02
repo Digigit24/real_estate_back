@@ -256,6 +256,22 @@ class HasCRMPermission:
         'destroy': 'delete',
     }
 
+    # Fallback map for plain APIViews that have no .action attribute
+    METHOD_ACTION_MAP = {
+        'GET': 'list',
+        'POST': 'create',
+        'PUT': 'update',
+        'PATCH': 'partial_update',
+        'DELETE': 'destroy',
+    }
+
+    def _get_action(self, request, view):
+        """Return the DRF action string for the current request."""
+        action = getattr(view, 'action', None)
+        if action:
+            return action
+        return self.METHOD_ACTION_MAP.get(request.method.upper(), 'list')
+
     def has_permission(self, request, view):
         """
         Check if user has permission to perform the action on the resource
@@ -267,7 +283,7 @@ class HasCRMPermission:
             return True
 
         # Get the action (list, create, retrieve, etc.)
-        action = view.action
+        action = self._get_action(request, view)
         if not action:
             # No action defined, allow by default
             return True
@@ -293,7 +309,7 @@ class HasCRMPermission:
         if not resource:
             return True
 
-        action = view.action
+        action = self._get_action(request, view)
         if not action:
             return True
 
