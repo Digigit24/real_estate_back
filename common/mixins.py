@@ -61,7 +61,7 @@ class TenantMixin(serializers.ModelSerializer):
                 })
         
         # Ensure tenant_id is not empty string
-        if not tenant_id or tenant_id.strip() == '':
+        if not tenant_id or str(tenant_id).strip() == '':
             logger.error(
                 f"Tenant ID is empty in request for {request.method} {request.path}"
             )
@@ -125,7 +125,7 @@ class TenantViewSetMixin:
             return queryset
         
         # Ensure tenant_id is not empty string
-        if not tenant_id or tenant_id.strip() == '':
+        if not tenant_id or str(tenant_id).strip() == '':
             logger.warning(
                 f"Tenant ID is empty in get_queryset for {self.request.method} {self.request.path}, "
                 f"returning unfiltered queryset"
@@ -184,7 +184,7 @@ class TenantViewSetMixin:
                 })
         
         # Ensure tenant_id is not empty string
-        if not tenant_id or tenant_id.strip() == '':
+        if not tenant_id or str(tenant_id).strip() == '':
             logger.error(
                 f"Tenant ID is empty in perform_create for {self.request.method} {self.request.path}"
             )

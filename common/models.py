@@ -1,3 +1,4 @@
+import uuid
 from django.db import models
 from django.contrib.auth.hashers import make_password, check_password
 
@@ -11,7 +12,7 @@ class LocalSuperAdmin(models.Model):
     password = models.CharField(max_length=255)
     first_name = models.CharField(max_length=100, blank=True)
     last_name = models.CharField(max_length=100, blank=True)
-    tenant_id = models.IntegerField(default=1)
+    tenant_id = models.UUIDField(default=uuid.uuid4)
     tenant_slug = models.CharField(max_length=100, default='default')
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)

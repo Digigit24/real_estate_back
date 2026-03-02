@@ -160,7 +160,7 @@ def _build_local_admin_jwt(admin):
         'email': admin.email,
         'first_name': admin.first_name,
         'last_name': admin.last_name,
-        'tenant_id': admin.tenant_id,
+        'tenant_id': str(admin.tenant_id),
         'tenant_slug': admin.tenant_slug,
         'is_super_admin': True,
         'enabled_modules': ['crm', 'meetings', 'payments', 'tasks', 'integrations',
