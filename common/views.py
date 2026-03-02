@@ -180,10 +180,12 @@ def _try_local_admin_login(request, email, password):
     try:
         from common.models import LocalSuperAdmin
         admin = LocalSuperAdmin.objects.get(email=email, is_active=True)
-    except Exception:
+    except Exception as e:
+        logger.info(f"Local admin lookup failed for {email}: {e}")
         return None
 
     if not admin.check_password(password):
+        logger.warning(f"Local admin password mismatch for {email}")
         return None
 
     access_token = _build_local_admin_jwt(admin)
