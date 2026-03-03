@@ -914,6 +914,175 @@ class LeadViewSet(CRMPermissionMixin, TenantViewSetMixin, viewsets.ModelViewSet)
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
 
+    @extend_schema(
+        description='Move a single lead to a different pipeline status (Kanban drag-drop)',
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'status_id': {'type': 'integer', 'description': 'Target status ID'},
+                },
+                'required': ['status_id'],
+            }
+        },
+        responses={200: LeadSerializer},
+    )
+    @action(detail=True, methods=['post'], url_path='move-to-status')
+    def move_to_status(self, request, pk=None):
+        """
+        Move a single lead to a new pipeline status.
+        Used for Kanban board drag-and-drop.
+
+        Request body: { "status_id": 5 }
+        Accessible at: POST /api/crm/leads/{id}/move-to-status/
+        """
+        lead = self.get_object()
+
+        status_id = request.data.get('status_id')
+        if not status_id:
+            return Response({'error': 'status_id is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            new_status = LeadStatus.objects.get(id=status_id, tenant_id=request.tenant_id)
+        except LeadStatus.DoesNotExist:
+            return Response(
+                {'error': f'Status {status_id} not found'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        lead.status = new_status
+        lead.save(update_fields=['status', 'updated_at'])
+
+        logger.info(f"Lead {lead.id} moved to status '{new_status.name}' by tenant {request.tenant_id}")
+        serializer = LeadSerializer(lead, context={'request': request})
+        return Response(serializer.data)
+
+    @extend_schema(
+        description='Add an activity (call, note, site visit, etc.) directly to a lead',
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'type': {'type': 'string', 'enum': ['CALL', 'EMAIL', 'MEETING', 'NOTE', 'SMS', 'SITE_VISIT', 'WHATSAPP', 'OTHER']},
+                    'content': {'type': 'string'},
+                    'happened_at': {'type': 'string', 'format': 'date-time'},
+                    'by_user_id': {'type': 'string'},
+                    'meta': {'type': 'object'},
+                    'file_url': {'type': 'string'},
+                },
+                'required': ['type', 'content'],
+            }
+        },
+        responses={201: LeadActivitySerializer},
+    )
+    @action(detail=True, methods=['post'], url_path='add-activity')
+    def add_activity(self, request, pk=None):
+        """
+        Add an activity to a specific lead.
+        Shortcut for POST /api/crm/activities/ that auto-sets the lead.
+
+        Request body: { "type": "CALL", "content": "Discussed budget", "happened_at": "..." }
+        Accessible at: POST /api/crm/leads/{id}/add-activity/
+        """
+        lead = self.get_object()
+
+        data = request.data.copy()
+        data['lead'] = lead.pk
+
+        serializer = LeadActivitySerializer(data=data, context={'request': request})
+        serializer.is_valid(raise_exception=True)
+        serializer.save(
+            tenant_id=request.tenant_id,
+            by_user_id=data.get('by_user_id') or request.user_id,
+        )
+
+        logger.info(f"Activity added to lead {lead.id} by tenant {request.tenant_id}")
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    @extend_schema(
+        description='Bulk assign multiple leads to a user',
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'lead_ids': {'type': 'array', 'items': {'type': 'integer'}},
+                    'assigned_to': {'type': 'string', 'description': 'User ID to assign leads to'},
+                },
+                'required': ['lead_ids', 'assigned_to'],
+            }
+        },
+        responses={200: {
+            'type': 'object',
+            'properties': {
+                'updated_count': {'type': 'integer'},
+                'message': {'type': 'string'},
+            }
+        }},
+    )
+    @action(detail=False, methods=['post'], url_path='bulk-assign')
+    def bulk_assign(self, request):
+        """
+        Bulk assign multiple leads to a specific user.
+
+        Request body: { "lead_ids": [1, 2, 3], "assigned_to": "user-uuid" }
+        Accessible at: POST /api/crm/leads/bulk-assign/
+        """
+        lead_ids = request.data.get('lead_ids', [])
+        assigned_to = request.data.get('assigned_to')
+
+        if not lead_ids:
+            return Response({'error': 'lead_ids is required'}, status=status.HTTP_400_BAD_REQUEST)
+        if not assigned_to:
+            return Response({'error': 'assigned_to is required'}, status=status.HTTP_400_BAD_REQUEST)
+
+        try:
+            updated_count = Lead.objects.filter(
+                tenant_id=request.tenant_id,
+                id__in=lead_ids
+            ).update(assigned_to=assigned_to)
+
+            logger.info(f"Bulk assigned {updated_count} leads to {assigned_to} for tenant {request.tenant_id}")
+            return Response({
+                'updated_count': updated_count,
+                'message': f'Successfully assigned {updated_count} leads',
+            })
+        except Exception as e:
+            logger.error(f"Error in bulk_assign: {str(e)}")
+            return Response(
+                {'error': f'Failed to bulk assign leads: {str(e)}'},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+
+    @extend_schema(
+        description='Download a CSV template file for bulk lead import',
+        responses={200: {'type': 'string', 'format': 'binary'}},
+    )
+    @action(detail=False, methods=['get'], url_path='import-template')
+    def import_template(self, request):
+        """
+        Download a CSV template for bulk lead import.
+        Returns a CSV file with column headers and one example row.
+
+        Accessible at: GET /api/crm/leads/import-template/
+        """
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = 'attachment; filename="leads_import_template.csv"'
+
+        writer = csv.writer(response)
+        # Header row
+        writer.writerow([
+            'name', 'phone', 'email', 'company', 'priority',
+            're_source', 'budget_min', 'budget_max', 'bhk_preference',
+            'notes', 'assigned_to',
+        ])
+        # Example row
+        writer.writerow([
+            'Rahul Sharma', '+91-9876543210', 'rahul@example.com', 'ABC Corp', 'MEDIUM',
+            'WALK_IN', '5000000', '8000000', '2BHK',
+            'Interested in 2BHK near city centre', '',
+        ])
+        return response
+
 
 @extend_schema_view(
     list=extend_schema(description='List all lead activities'),
