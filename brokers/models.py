@@ -47,7 +47,7 @@ class Broker(models.Model):
     portal_email = models.TextField(null=True, blank=True, db_index=True, help_text='Login email for broker portal')
     password_hash = models.TextField(null=True, blank=True)
 
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -101,7 +101,7 @@ class Commission(models.Model):
     paid_date = models.DateField(null=True, blank=True)
     notes = models.TextField(null=True, blank=True)
 
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

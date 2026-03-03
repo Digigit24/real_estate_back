@@ -58,7 +58,7 @@ class LeadSerializer(TenantMixin):
             'broker_id', 'site_visit_date', 'token_amount',
             'created_at', 'updated_at', 'activities',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner_user_id', 'created_at', 'updated_at']
 
     def validate_lead_score(self, value):
         """Validate lead_score is between 0 and 100"""

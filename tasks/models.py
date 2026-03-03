@@ -34,7 +34,7 @@ class Task(models.Model):
     due_date = models.DateTimeField(null=True, blank=True)
     assignee_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     reporter_user_id = models.UUIDField(db_index=True, null=True, blank=True)
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     checklist = models.JSONField(null=True, blank=True)
     attachments_count = models.IntegerField(default=0)
     created_at = models.DateTimeField(auto_now_add=True)

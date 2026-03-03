@@ -20,7 +20,7 @@ class Meeting(models.Model):
     notes = models.TextField(null=True, blank=True)
     start_at = models.DateTimeField()
     end_at = models.DateTimeField()
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

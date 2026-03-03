@@ -17,7 +17,7 @@ class BrokerSerializer(TenantMixin):
             'leads_count', 'bookings_count', 'total_commission_earned',
         ]
         read_only_fields = [
-            'id', 'created_at', 'updated_at',
+            'id', 'owner_user_id', 'created_at', 'updated_at',
             'leads_count', 'bookings_count', 'total_commission_earned',
         ]
 
@@ -65,7 +65,7 @@ class CommissionSerializer(TenantMixin):
         read_only_fields = [
             'id', 'broker_name', 'broker_phone',
             'booking_date', 'unit_number', 'project_name',
-            'created_at', 'updated_at',
+            'owner_user_id', 'created_at', 'updated_at',
         ]
 
 
