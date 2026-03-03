@@ -1,4 +1,5 @@
 import getpass
+import uuid
 from django.core.management.base import BaseCommand
 from common.models import LocalSuperAdmin
 
@@ -11,7 +12,7 @@ class Command(BaseCommand):
         parser.add_argument('--password', type=str, help='Admin password')
         parser.add_argument('--first-name', type=str, default='Super', help='First name')
         parser.add_argument('--last-name', type=str, default='Admin', help='Last name')
-        parser.add_argument('--tenant-id', type=int, default=1, help='Tenant ID')
+        parser.add_argument('--tenant-id', type=str, default=None, help='Tenant UUID')
         parser.add_argument('--tenant-slug', type=str, default='default', help='Tenant slug')
 
     def handle(self, *args, **options):
@@ -36,10 +37,25 @@ class Command(BaseCommand):
             self.stderr.write(self.style.ERROR('Password is required.'))
             return
 
+        tenant_id_input = options.get('tenant_id')
+        if tenant_id_input:
+            try:
+                tenant_uuid = uuid.UUID(str(tenant_id_input))
+            except (ValueError, TypeError):
+                self.stderr.write(self.style.ERROR('Invalid --tenant-id. Must be a valid UUID.'))
+                return
+        else:
+            tenant_uuid = uuid.uuid4()
+
         admin, created = LocalSuperAdmin.objects.get_or_create(email=email)
         admin.first_name = options.get('first_name') or 'Super'
         admin.last_name = options.get('last_name') or 'Admin'
-        admin.tenant_id = options.get('tenant_id') or 1
+
+        if created or tenant_id_input:
+            admin.tenant_id = tenant_uuid
+        elif not admin.tenant_id:
+            admin.tenant_id = uuid.uuid4()
+
         admin.tenant_slug = options.get('tenant_slug') or 'default'
         admin.is_active = True
         admin.set_password(password)

@@ -428,3 +428,6 @@ CELERY_BEAT_SCHEDULE = {
         'schedule': 86400.0,  # Every 24 hours
     },
 }
+# Legacy tenant fallback for old non-UUID tokens
+LEGACY_DEFAULT_TENANT_UUID = config('LEGACY_DEFAULT_TENANT_UUID', default=None)
+

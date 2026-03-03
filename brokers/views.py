@@ -22,6 +22,16 @@ import logging
 
 logger = logging.getLogger(__name__)
 
+def _require_broker(request):
+    broker = getattr(request, 'broker', None)
+    if not broker:
+        return None, Response(
+            {'error': 'Broker authentication required. Use Authorization: BrokerToken <token>.'},
+            status=status.HTTP_401_UNAUTHORIZED
+        )
+    return broker, None
+
+
 
 @extend_schema_view(
     list=extend_schema(description='List all channel partners / brokers'),
@@ -177,15 +187,14 @@ class CommissionViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
 class BrokerRegisterView(APIView):
     """
     POST /api/brokers/portal/register/
-    Broker self-registration. Creates broker in PENDING status.
-    Builder admin must approve (set status=ACTIVE) before broker can login.
+    Broker self-registration. Creates broker in ACTIVE status for direct portal access.
     Body: { tenant_id, name, phone, email, password, company_name, rera_number, city }
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     @extend_schema(
-        description='Broker self-registration (status=PENDING until approved by admin)',
+        description='Broker self-registration (status=ACTIVE for immediate login)',
         request=BrokerRegisterSerializer,
         responses={
             201: BrokerRegisterResponseSerializer,
@@ -218,14 +227,14 @@ class BrokerRegisterView(APIView):
             company_name=data.get('company_name'),
             rera_number=data.get('rera_number'),
             city=data.get('city'),
-            status=BrokerStatusEnum.PENDING,
+            status=BrokerStatusEnum.ACTIVE,
             owner_user_id='00000000-0000-0000-0000-000000000000',  # system
         )
         broker.set_password(data['password'])
         broker.save()
 
         return Response({
-            'message': 'Registration successful. Your account is pending approval by the builder.',
+            'message': 'Registration successful. You can login now.',
             'broker_id': broker.id,
             'status': broker.status,
         }, status=status.HTTP_201_CREATED)
@@ -234,40 +243,61 @@ class BrokerRegisterView(APIView):
 class BrokerLoginView(APIView):
     """
     POST /api/brokers/portal/login/
-    Body: { tenant_id, phone, password }
+    Body: { email|phone, password, tenant_id? }
     Returns: { token, broker_id, name, status }
     """
     authentication_classes = []
     permission_classes = [AllowAny]
 
     @extend_schema(
-        description='Broker portal login — returns BrokerToken for subsequent requests',
+        description='Broker portal login - returns BrokerToken for subsequent requests',
         request=BrokerLoginSerializer,
         responses={
             200: BrokerLoginResponseSerializer,
-            400: {'description': 'Missing tenant_id, phone, or password'},
+            400: {'description': 'Missing email/phone/password or ambiguous broker account'},
             401: {'description': 'Invalid credentials'},
-            403: {'description': 'Account is PENDING or inactive'},
+            403: {'description': 'Account is inactive/rejected'},
         },
     )
     def post(self, request):
         tenant_id = request.data.get('tenant_id')
         phone = request.data.get('phone')
+        email = request.data.get('email')
         password = request.data.get('password')
 
-        if not all([tenant_id, phone, password]):
-            return Response({'error': 'tenant_id, phone, and password are required.'}, status=status.HTTP_400_BAD_REQUEST)
+        if not password or (not phone and not email):
+            return Response(
+                {'error': 'email or phone, and password are required.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
-        try:
-            broker = Broker.objects.get(tenant_id=tenant_id, phone=phone)
-        except Broker.DoesNotExist:
+        broker_qs = Broker.objects.all()
+
+        if tenant_id:
+            broker_qs = broker_qs.filter(tenant_id=tenant_id)
+
+        if phone:
+            broker_qs = broker_qs.filter(phone=phone)
+        else:
+            broker_qs = broker_qs.filter(portal_email=email)
+
+        if not tenant_id and broker_qs.count() > 1:
+            return Response(
+                {'error': 'tenant_id is required for this broker account.'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        broker = broker_qs.first()
+        if not broker:
             return Response({'error': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
 
         if not broker.check_password(password):
             return Response({'error': 'Invalid credentials.'}, status=status.HTTP_401_UNAUTHORIZED)
 
+        # Legacy self-registered records may still be PENDING; activate on first successful login.
         if broker.status == BrokerStatusEnum.PENDING:
-            return Response({'error': 'Your account is pending approval by the builder.'}, status=status.HTTP_403_FORBIDDEN)
+            broker.status = BrokerStatusEnum.ACTIVE
+            broker.save(update_fields=['status', 'updated_at'])
 
         if broker.status != BrokerStatusEnum.ACTIVE:
             return Response({'error': f'Account is {broker.status}. Contact the builder.'}, status=status.HTTP_403_FORBIDDEN)
@@ -282,7 +312,6 @@ class BrokerLoginView(APIView):
             'status': broker.status,
             'expires_at': session.expires_at,
         })
-
 
 class BrokerLogoutView(APIView):
     """POST /api/brokers/portal/logout/ — invalidate current token"""
@@ -308,7 +337,9 @@ class BrokerMeView(APIView):
 
     @extend_schema(description='Get authenticated broker profile with leads count, bookings, and commissions summary')
     def get(self, request):
-        broker = request.broker
+        broker, auth_error = _require_broker(request)
+        if auth_error:
+            return auth_error
         from crm.models import Lead
         leads_count = Lead.objects.filter(tenant_id=broker.tenant_id, broker_id=broker.id).count()
         commissions = broker.commissions.all()
@@ -357,7 +388,9 @@ class BrokerSubmitLeadView(APIView):
         },
     )
     def post(self, request):
-        broker = request.broker
+        broker, auth_error = _require_broker(request)
+        if auth_error:
+            return auth_error
         data = request.data
 
         if not data.get('name') or not data.get('phone'):
@@ -394,7 +427,9 @@ class BrokerMyLeadsView(APIView):
 
     @extend_schema(description='Broker views their own submitted leads with current pipeline status')
     def get(self, request):
-        broker = request.broker
+        broker, auth_error = _require_broker(request)
+        if auth_error:
+            return auth_error
         from crm.models import Lead
         leads = Lead.objects.filter(
             tenant_id=broker.tenant_id, broker_id=broker.id
@@ -419,7 +454,9 @@ class BrokerMyCommissionsView(APIView):
 
     @extend_schema(description='Broker views their commission records per booking')
     def get(self, request):
-        broker = request.broker
+        broker, auth_error = _require_broker(request)
+        if auth_error:
+            return auth_error
         commissions = broker.commissions.select_related(
             'booking', 'booking__unit', 'booking__unit__tower', 'booking__unit__tower__project'
         ).order_by('-created_at')
@@ -436,3 +473,7 @@ class BrokerMyCommissionsView(APIView):
             'paid_date': c.paid_date,
         } for c in commissions]
         return Response({'count': len(data), 'results': data})
+
+
+
+

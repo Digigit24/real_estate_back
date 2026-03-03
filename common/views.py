@@ -160,7 +160,7 @@ def _build_local_admin_jwt(admin):
         'email': admin.email,
         'first_name': admin.first_name,
         'last_name': admin.last_name,
-        'tenant_id': admin.tenant_id,
+        'tenant_id': str(admin.tenant_id),
         'tenant_slug': admin.tenant_slug,
         'is_super_admin': True,
         'enabled_modules': ['crm', 'meetings', 'payments', 'tasks', 'integrations',
@@ -192,7 +192,7 @@ def _try_local_admin_login(request, email, password):
         'email': admin.email,
         'first_name': admin.first_name,
         'last_name': admin.last_name,
-        'tenant_id': admin.tenant_id,
+        'tenant_id': str(admin.tenant_id),
         'tenant_slug': admin.tenant_slug,
         'is_super_admin': True,
         'permissions': {},
@@ -205,7 +205,7 @@ def _try_local_admin_login(request, email, password):
 
     user = TenantUser(user_payload)
     request.session['jwt_token'] = access_token
-    request.session['tenant_id'] = admin.tenant_id
+    request.session['tenant_id'] = str(admin.tenant_id)
     request.session['tenant_slug'] = admin.tenant_slug
     request.session['user_data'] = user_payload
     user.backend = 'common.auth_backends.SuperAdminAuthBackend'
@@ -222,7 +222,7 @@ def _try_local_admin_login(request, email, password):
         'user': {
             'id': admin.pk,
             'email': admin.email,
-            'tenant_id': admin.tenant_id,
+            'tenant_id': str(admin.tenant_id),
             'tenant_slug': admin.tenant_slug,
             'is_superuser': True,
             'permissions': {},
@@ -442,3 +442,4 @@ def admin_logout_view(request):
     logout(request)
     messages.success(request, 'Successfully logged out')
     return redirect('/admin/login/')
+

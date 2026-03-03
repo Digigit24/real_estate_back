@@ -1,6 +1,8 @@
 """
 DRF Authentication class for the Broker Portal.
-Brokers send: Authorization: BrokerToken <token>
+Supports:
+- Authorization: BrokerToken <session_token>
+- Authorization: Bearer <session_token>  (frontend compatibility)
 """
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
@@ -15,12 +17,29 @@ class BrokerTokenAuthentication(BaseAuthentication):
 
     keyword = 'BrokerToken'
 
-    def authenticate(self, request):
-        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
-        if not auth_header.startswith(f'{self.keyword} '):
+    def _extract_token(self, auth_header):
+        if not auth_header:
             return None
 
-        token = auth_header[len(self.keyword) + 1:].strip()
+        if auth_header.startswith(f'{self.keyword} '):
+            token = auth_header[len(self.keyword) + 1:].strip()
+            return token or None
+
+        # Compatibility: allow Bearer broker-session tokens.
+        # Ignore JWT-like Bearer tokens so they don't get treated as broker tokens.
+        if auth_header.startswith('Bearer '):
+            token = auth_header[len('Bearer '):].strip()
+            if not token:
+                return None
+            if '.' in token:
+                return None
+            return token
+
+        return None
+
+    def authenticate(self, request):
+        auth_header = request.META.get('HTTP_AUTHORIZATION', '')
+        token = self._extract_token(auth_header)
         if not token:
             return None
 
