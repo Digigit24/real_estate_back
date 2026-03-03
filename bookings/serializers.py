@@ -55,7 +55,7 @@ class BookingSerializer(TenantMixin):
         ]
         read_only_fields = [
             'id', 'lead_name', 'lead_phone', 'unit_number', 'tower_name',
-            'project_name', 'project_id', 'milestones',
+            'project_name', 'project_id', 'milestones', 'owner_user_id',
             'total_collected', 'total_pending', 'created_at', 'updated_at',
         ]
 

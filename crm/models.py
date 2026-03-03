@@ -134,7 +134,7 @@ class Lead(models.Model):
     token_amount = models.DecimalField(max_digits=14, decimal_places=2, null=True, blank=True)
     # ------------------------------------
 
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     assigned_to = models.UUIDField(db_index=True, null=True, blank=True)
     metadata = models.JSONField(null=True, blank=True, help_text='Custom fields for storing dynamic key-value pairs')
     last_contacted_at = models.DateTimeField(null=True, blank=True)
@@ -183,7 +183,7 @@ class LeadActivity(models.Model):
     type = models.CharField(max_length=20, choices=ActivityTypeEnum.choices)
     content = models.TextField(null=True, blank=True)
     happened_at = models.DateTimeField()
-    by_user_id = models.UUIDField(db_index=True)
+    by_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     meta = models.JSONField(null=True, blank=True)
     file_url = models.TextField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

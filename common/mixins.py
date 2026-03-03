@@ -93,6 +93,19 @@ class TenantMixin(serializers.ModelSerializer):
         validated_data['tenant_id'] = tenant_id
         logger.debug(f"Creating object with tenant_id: {tenant_id}")
 
+        # Auto-set owner_user_id / by_user_id from the authenticated user.
+        # Both are read-only on serializers; the model fields are nullable so
+        # integer user IDs (local admin) are silently skipped.
+        user_id = getattr(request, 'user_id', None)
+        if user_id is not None:
+            try:
+                user_uuid = uuid.UUID(str(user_id))
+                for field in ('owner_user_id', 'by_user_id'):
+                    if field not in validated_data:
+                        validated_data[field] = user_uuid
+            except (ValueError, AttributeError):
+                pass  # integer local-admin ID – leave fields null
+
         return super().create(validated_data)
 
     def update(self, instance, validated_data):

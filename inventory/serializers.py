@@ -15,7 +15,7 @@ class ProjectSerializer(TenantMixin):
             'logo_url', 'banner_url', 'is_active',
             'tower_count', 'owner_user_id', 'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'tower_count', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'tower_count', 'owner_user_id', 'created_at', 'updated_at']
 
 
 class ProjectListSerializer(TenantMixin):
@@ -65,7 +65,7 @@ class UnitSerializer(TenantMixin):
         ]
         read_only_fields = [
             'id', 'tower_name', 'project_id', 'project_name',
-            'total_price', 'created_at', 'updated_at',
+            'total_price', 'owner_user_id', 'created_at', 'updated_at',
         ]
 
 

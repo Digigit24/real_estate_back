@@ -58,7 +58,7 @@ class Project(models.Model):
     banner_url = models.TextField(null=True, blank=True)
 
     is_active = models.BooleanField(default=True)
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -158,7 +158,7 @@ class Unit(models.Model):
 
     remarks = models.TextField(null=True, blank=True)
     is_active = models.BooleanField(default=True)
-    owner_user_id = models.UUIDField(db_index=True)
+    owner_user_id = models.UUIDField(db_index=True, null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
