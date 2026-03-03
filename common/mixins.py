@@ -1,4 +1,5 @@
 import logging
+import uuid
 from rest_framework import serializers
 from rest_framework.exceptions import ValidationError
 
@@ -71,7 +72,19 @@ class TenantMixin(serializers.ModelSerializer):
         
         validated_data['tenant_id'] = tenant_id
         logger.debug(f"Creating object with tenant_id: {tenant_id}")
-        
+
+        # Auto-set owner_user_id from the authenticated user if the model needs it
+        # and the frontend did not supply it (it's read-only on most serializers).
+        if 'owner_user_id' not in validated_data:
+            user_id = getattr(request, 'user_id', None)
+            if user_id is not None:
+                try:
+                    validated_data['owner_user_id'] = uuid.UUID(str(user_id))
+                except (ValueError, AttributeError):
+                    # user_id is an integer (local admin) – cannot coerce to UUID;
+                    # the field is now nullable so we just leave it unset.
+                    pass
+
         return super().create(validated_data)
     
     def update(self, instance, validated_data):
