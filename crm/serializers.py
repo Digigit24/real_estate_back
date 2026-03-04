@@ -27,7 +27,7 @@ class LeadActivitySerializer(TenantMixin):
             'id', 'lead', 'type', 'content', 'happened_at',
             'by_user_id', 'meta', 'file_url', 'created_at'
         ]
-        read_only_fields = ['id', 'created_at']
+        read_only_fields = ['id', 'by_user_id', 'created_at']
 
 
 class LeadOrderSerializer(TenantMixin):
@@ -83,7 +83,7 @@ class LeadListSerializer(TenantMixin):
             'preferred_project_id', 'shortlisted_unit_id',
             'created_at', 'updated_at',
         ]
-        read_only_fields = ['id', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'owner_user_id', 'created_at', 'updated_at']
 
 
 class BulkLeadDeleteSerializer(serializers.Serializer):
