@@ -3,6 +3,49 @@
 
 ---
 
+## ⚠️ Recent API Changes (March 2026)
+
+### 1. Commission response now includes `lead_name`
+`GET /api/brokers/commissions/` and `GET /api/brokers/brokers/{id}/commissions/` now return both `lead_id` **and** `lead_name` in every commission object.
+
+**Before:**
+```json
+{ "lead_id": 5, ... }
+```
+**Now:**
+```json
+{ "lead_id": 5, "lead_name": "Rahul Sharma", ... }
+```
+No change needed on your POST/PATCH calls — `lead_name` is read-only and auto-resolved.
+
+---
+
+### 2. Mark-Milestone-Paid field names (important — do not use old names)
+
+The correct request body for `POST /api/bookings/{id}/milestones/{mid}/mark-paid/` is:
+
+```json
+{
+  "received_amount": 1000000,
+  "received_date": "2026-04-08",
+  "reference_no": "NEFT/20260408/123456",
+  "notes": "Received via NEFT"
+}
+```
+
+| Field | Type | Required | Notes |
+|-------|------|----------|-------|
+| `received_amount` | decimal | **Yes** | Actual amount received |
+| `received_date` | date `YYYY-MM-DD` | **Yes** | Date payment was received |
+| `reference_no` | string | No | Bank/cheque/UTR reference number |
+| `notes` | string | No | Any remarks |
+
+> If `received_amount` < milestone `amount`, status becomes `PARTIALLY_PAID`. If equal or greater, status becomes `PAID`.
+
+---
+
+---
+
 ## Table of Contents
 1. [Setup & Auth](#1-setup--auth)
 2. [First Login Flow](#2-first-login-flow)
@@ -608,7 +651,7 @@ POST /api/tenant/payment-plan-templates/preview/
 | GET | `/api/brokers/brokers/leaderboard/` | Broker leaderboard |
 | GET | `/api/brokers/brokers/{id}/leads/` | Leads by this broker |
 | GET | `/api/brokers/brokers/{id}/commissions/` | Commissions for this broker |
-| GET | `/api/brokers/commissions/` | All commissions |
+| GET | `/api/brokers/commissions/` | All commissions (includes `lead_name`) |
 | PATCH | `/api/brokers/commissions/{id}/` | Update commission |
 | POST | `/api/brokers/commissions/{id}/mark-paid/` | Mark commission paid |
 
@@ -635,6 +678,27 @@ POST /api/brokers/brokers/
     { "rank": 1, "broker_id": 3, "name": "Vinod Kadam", "bookings_count": 8, "total_commission": "144000.00", "leads_count": 25 },
     { "rank": 2, ... }
   ]
+}
+```
+
+**Commission Response — `GET /api/brokers/commissions/`:**
+```json
+{
+  "id": 1,
+  "broker": 3,
+  "broker_name": "Vinod Kadam",
+  "broker_phone": "9123456789",
+  "booking": 1,
+  "booking_date": "2026-03-10",
+  "unit_number": "B-403",
+  "project_name": "Sunrise Heights",
+  "lead_id": 5,
+  "lead_name": "Rahul Sharma",
+  "commission_rate": "2.00",
+  "commission_amount": "180000.00",
+  "status": "PENDING",
+  "paid_date": null,
+  "notes": null
 }
 ```
 
