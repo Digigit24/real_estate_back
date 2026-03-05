@@ -218,6 +218,7 @@ CORS_PREFLIGHT_MAX_AGE = 3600
 
 # REST Framework Settings
 REST_FRAMEWORK = {
+    'EXCEPTION_HANDLER': 'common.views.custom_exception_handler',
     'DEFAULT_PAGINATION_CLASS': 'common.pagination.StandardPagination',
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend',
