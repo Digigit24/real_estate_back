@@ -10,6 +10,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from common.mixins import TenantViewSetMixin
+from tenant_settings.models import TenantSettings
 from common.permissions import JWTAuthentication, HasCRMPermission
 from inventory.models import UnitStatusEnum
 from .models import Booking, PaymentMilestone, PaymentPlanTypeEnum, MilestoneStatusEnum, BookingStatusEnum
@@ -20,6 +21,28 @@ from .serializers import (
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def _get_builder_info(tenant_id):
+    """Return tenant branding/contact info for PDF documents."""
+    try:
+        s = TenantSettings.objects.get(tenant_id=tenant_id)
+        return {
+            'company_name': s.company_name,
+            'logo_url': s.logo_url,
+            'gstin': s.gstin,
+            'address': s.address,
+            'city': s.city,
+            'state': s.state,
+            'pincode': s.pincode,
+            'support_email': s.support_email,
+            'support_phone': s.support_phone,
+            'pdf_header_text': s.pdf_header_text,
+            'pdf_footer_text': s.pdf_footer_text,
+            'signature_url': s.signature_url,
+        }
+    except TenantSettings.DoesNotExist:
+        return {}
 
 
 def _auto_create_commission(booking, tenant_id):
@@ -336,6 +359,7 @@ class BookingViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         return Response({
             'document_type': 'DEMAND_LETTER',
             'generated_at': __import__('django.utils.timezone', fromlist=['timezone']).timezone.now().isoformat(),
+            'builder': _get_builder_info(booking.tenant_id),
             'booking': {
                 'id': booking.id,
                 'booking_date': booking.booking_date,
@@ -397,6 +421,7 @@ class BookingViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
             'generated_at': timezone.now().isoformat(),
             'receipt_number': f'RCP-{booking.id}-{milestone.id}',
             'booking_id': booking.id,
+            'builder': _get_builder_info(booking.tenant_id),
             'buyer': {
                 'name': booking.lead.name,
                 'phone': booking.lead.phone,
