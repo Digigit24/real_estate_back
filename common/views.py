@@ -309,11 +309,11 @@ def superadmin_proxy_login_view(request):
                     
                     # Create user data from external API response and JWT payload
                     user_payload = {
-                        'user_id': user_data.get('id'),
+                        'user_id': str(user_data.get('id', '')),
                         'email': user_data.get('email'),
                         'first_name': user_data.get('first_name', ''),
                         'last_name': user_data.get('last_name', ''),
-                        'tenant_id': user_data.get('tenant'),
+                        'tenant_id': str(user_data.get('tenant', '')),
                         'tenant_slug': user_data.get('tenant_name'),
                         'is_super_admin': user_data.get('is_super_admin', False),
                         'permissions': payload.get('permissions', {}),
@@ -330,7 +330,7 @@ def superadmin_proxy_login_view(request):
 
                     # Store additional data in session before login
                     request.session['jwt_token'] = access_token
-                    request.session['tenant_id'] = user_data.get('tenant')
+                    request.session['tenant_id'] = str(user_data.get('tenant', ''))
                     request.session['tenant_slug'] = user_data.get('tenant_name')
                     request.session['user_data'] = user_payload
 
