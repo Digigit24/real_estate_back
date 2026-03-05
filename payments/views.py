@@ -4,6 +4,7 @@ from drf_spectacular.utils import extend_schema, extend_schema_view
 from .models import Payment
 from .serializers import PaymentSerializer, PaymentListSerializer
 from common.mixins import TenantViewSetMixin
+from common.permissions import JWTAuthentication, HasCRMPermission
 
 
 @extend_schema_view(
@@ -19,6 +20,9 @@ class PaymentViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
     ViewSet for managing Payments
     """
     queryset = Payment.objects.select_related('lead')
+    authentication_classes = [JWTAuthentication]
+    permission_classes = [HasCRMPermission]
+    permission_resource = 'payments'
     filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
     filterset_fields = {
         'lead': ['exact'],
