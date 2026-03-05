@@ -1,6 +1,9 @@
 import jwt
 import requests
 from django.shortcuts import render, redirect
+from rest_framework.views import exception_handler as drf_exception_handler
+from rest_framework.response import Response
+from rest_framework import status as drf_status
 from django.contrib.auth import authenticate, login
 from django.contrib.auth.views import LoginView
 from django.contrib import messages
@@ -12,6 +15,24 @@ from django.views import View
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+def custom_exception_handler(exc, context):
+    """
+    Custom DRF exception handler that ensures all errors return JSON,
+    including database errors (OperationalError, IntegrityError) which
+    the default DRF handler does not catch.
+    """
+    response = drf_exception_handler(exc, context)
+    if response is not None:
+        return response
+
+    # Unhandled exception (e.g. DB OperationalError, IntegrityError)
+    logger.error(f"Unhandled exception in {context.get('view')}: {exc}", exc_info=True)
+    return Response(
+        {'error': 'An unexpected server error occurred. Please try again later.'},
+        status=drf_status.HTTP_500_INTERNAL_SERVER_ERROR,
+    )
 
 
 class SuperAdminLoginView(LoginView):
