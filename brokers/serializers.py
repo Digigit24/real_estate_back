@@ -52,21 +52,31 @@ class CommissionSerializer(TenantMixin):
     booking_date = serializers.DateField(source='booking.booking_date', read_only=True)
     unit_number = serializers.CharField(source='booking.unit.unit_number', read_only=True)
     project_name = serializers.CharField(source='booking.unit.tower.project.name', read_only=True)
+    lead_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Commission
         fields = [
             'id', 'broker', 'broker_name', 'broker_phone',
             'booking', 'booking_date', 'unit_number', 'project_name',
-            'lead_id', 'commission_rate', 'commission_amount',
+            'lead_id', 'lead_name', 'commission_rate', 'commission_amount',
             'status', 'paid_date', 'notes',
             'owner_user_id', 'created_at', 'updated_at',
         ]
         read_only_fields = [
             'id', 'broker_name', 'broker_phone',
             'booking_date', 'unit_number', 'project_name',
-            'owner_user_id', 'created_at', 'updated_at',
+            'lead_name', 'owner_user_id', 'created_at', 'updated_at',
         ]
+
+    def get_lead_name(self, obj):
+        if not obj.lead_id:
+            return None
+        from crm.models import Lead
+        try:
+            return Lead.objects.get(id=obj.lead_id).name
+        except Lead.DoesNotExist:
+            return None
 
 
 class CommissionCreateSerializer(TenantMixin):
