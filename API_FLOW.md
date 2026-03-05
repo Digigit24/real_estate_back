@@ -126,10 +126,14 @@ GET  /api/bookings/upcoming-payments/           → Upcoming due milestones
 
 ```
 POST /api/bookings/{id}/milestones/{milestone_id}/mark-paid/
-    → Body: { "amount_paid": 500000, "payment_date": "2025-03-01", "payment_mode": "cheque" }
+    → Body: {
+        "received_amount": 500000,       ← required: actual amount received
+        "received_date": "2025-03-01",   ← required: date payment was received
+        "reference_no": "NEFT/123456",   ← optional: bank/cheque reference
+        "notes": "Received via NEFT"     ← optional: any remarks
+      }
     ↓
-Milestone status → "paid"
-Payment record created internally
+Milestone status → "PAID" (or "PARTIALLY_PAID" if received_amount < milestone amount)
 ```
 
 ---
