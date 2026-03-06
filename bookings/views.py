@@ -358,7 +358,7 @@ class BookingViewSet(TenantViewSetMixin, viewsets.ModelViewSet):
         ))
         return Response({
             'document_type': 'DEMAND_LETTER',
-            'generated_at': __import__('django.utils.timezone', fromlist=['timezone']).timezone.now().isoformat(),
+            'generated_at': __import__('django.utils.timezone', fromlist=['now']).now().isoformat(),
             'builder': _get_builder_info(booking.tenant_id),
             'booking': {
                 'id': booking.id,
