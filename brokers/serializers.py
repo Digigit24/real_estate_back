@@ -117,8 +117,8 @@ class BrokerRegisterSerializer(serializers.Serializer):
 class BrokerRegisterResponseSerializer(serializers.Serializer):
     """Response body after successful broker self-registration."""
     message = serializers.CharField(help_text='Human-readable confirmation message')
-    broker_id = serializers.UUIDField(help_text='ID of the newly created broker record')
-    status = serializers.CharField(help_text='Always PENDING until approved by builder admin')
+    broker_id = serializers.IntegerField(help_text='ID of the newly created broker record')
+    status = serializers.CharField(help_text='Broker status after registration')
 
 
 class BrokerLoginSerializer(serializers.Serializer):
@@ -131,7 +131,7 @@ class BrokerLoginSerializer(serializers.Serializer):
 class BrokerLoginResponseSerializer(serializers.Serializer):
     """Response body after successful broker login."""
     token = serializers.CharField(help_text='BrokerToken — send as "BrokerToken <token>" header on all subsequent requests')
-    broker_id = serializers.UUIDField(help_text='UUID of the authenticated broker')
+    broker_id = serializers.IntegerField(help_text='ID of the authenticated broker')
     name = serializers.CharField(help_text='Broker full name')
     phone = serializers.CharField(help_text='Broker phone number')
     company_name = serializers.CharField(allow_null=True, help_text='Brokerage firm name')
@@ -147,13 +147,13 @@ class BrokerSubmitLeadSerializer(serializers.Serializer):
     budget_min = serializers.DecimalField(required=False, allow_null=True, max_digits=14, decimal_places=2, help_text='Min budget in INR')
     budget_max = serializers.DecimalField(required=False, allow_null=True, max_digits=14, decimal_places=2, help_text='Max budget in INR')
     bhk_preference = serializers.CharField(required=False, allow_blank=True, max_length=50, help_text='e.g. 2BHK, 3BHK')
-    preferred_project_id = serializers.UUIDField(required=False, allow_null=True, help_text='UUID of preferred project (optional)')
+    preferred_project_id = serializers.IntegerField(required=False, allow_null=True, help_text='Integer ID of preferred project (optional)')
     notes = serializers.CharField(required=False, allow_blank=True, help_text='Additional notes about the buyer')
 
 
 class BrokerSubmitLeadResponseSerializer(serializers.Serializer):
     """Response body after broker submits a lead."""
     message = serializers.CharField(help_text='Confirmation message')
-    lead_id = serializers.UUIDField(help_text='UUID of the newly created lead in CRM')
+    lead_id = serializers.IntegerField(help_text='ID of the newly created lead in CRM')
     lead_name = serializers.CharField(help_text='Buyer name')
     lead_phone = serializers.CharField(help_text='Buyer phone number')

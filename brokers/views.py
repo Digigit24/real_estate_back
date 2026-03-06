@@ -460,18 +460,23 @@ class BrokerMyCommissionsView(APIView):
         commissions = broker.commissions.select_related(
             'booking', 'booking__unit', 'booking__unit__tower', 'booking__unit__tower__project'
         ).order_by('-created_at')
-        data = [{
-            'id': c.id,
-            'booking_id': c.booking_id,
-            'unit': c.booking.unit.unit_number,
-            'project': c.booking.unit.tower.project.name,
-            'booking_date': c.booking.booking_date,
-            'booking_value': c.booking.total_amount,
-            'commission_rate': c.commission_rate,
-            'commission_amount': c.commission_amount,
-            'status': c.status,
-            'paid_date': c.paid_date,
-        } for c in commissions]
+        data = []
+        for c in commissions:
+            unit = c.booking.unit if c.booking else None
+            tower = unit.tower if unit else None
+            project = tower.project if tower else None
+            data.append({
+                'id': c.id,
+                'booking_id': c.booking_id,
+                'unit': unit.unit_number if unit else None,
+                'project': project.name if project else None,
+                'booking_date': c.booking.booking_date if c.booking else None,
+                'booking_value': c.booking.total_amount if c.booking else None,
+                'commission_rate': c.commission_rate,
+                'commission_amount': c.commission_amount,
+                'status': c.status,
+                'paid_date': c.paid_date,
+            })
         return Response({'count': len(data), 'results': data})
 
 
